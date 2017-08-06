@@ -4,5 +4,5 @@ enabled: true
 jmx:
   - object_name: application-custom:name=*
     metrics:
-      - attributes: Count
+      - attributes: Count,Value
         type: simple
