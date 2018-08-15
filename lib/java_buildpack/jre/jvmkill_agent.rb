@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Cloud Foundry Java Buildpack
 # Copyright 2016 the original author or authors.
 #
@@ -61,7 +63,7 @@ module JavaBuildpack
       end
 
       def container_dir
-        @application.services.find_service(FILTER)['volume_mounts'].first['container_dir']
+        @application.services.find_volume_service(FILTER)['volume_mounts'].first['container_dir']
       end
 
       def heap_dump_path

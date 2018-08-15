@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Cloud Foundry Java Buildpack
 # Copyright 2016 the original author or authors.
 #
@@ -18,7 +20,7 @@ require 'component_helper'
 require 'java_buildpack/jre/jvmkill_agent'
 
 describe JavaBuildpack::Jre::JvmkillAgent do
-  include_context 'component_helper'
+  include_context 'with component help'
 
   it 'copies executable to bin directory',
      cache_fixture: 'stub-jvmkill-agent' do
@@ -44,7 +46,7 @@ describe JavaBuildpack::Jre::JvmkillAgent do
 
   it 'adds heap dump parameter to JAVA_OPTS when volume service available' do
     allow(services).to receive(:one_volume_service?).with(/heap-dump/).and_return(true)
-    allow(services).to receive(:find_service).and_return('volume_mounts' =>
+    allow(services).to receive(:find_volume_service).and_return('volume_mounts' =>
                                                            [{ 'container_dir' => 'test-container-dir' }])
 
     component.release

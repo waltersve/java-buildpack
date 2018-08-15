@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 # Cloud Foundry Java Buildpack
-# Copyright 2013-2017 the original author or authors.
+# Copyright 2013-2018 the original author or authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
 require 'java_buildpack/logging/logger_factory'
 require 'java_buildpack/repository/version_resolver'
 require 'java_buildpack/util/configuration_utils'
 require 'java_buildpack/util/cache/download_cache'
+require 'json'
 require 'rake/tasklib'
 require 'rakelib/package'
 require 'terminal-table'
@@ -35,8 +38,8 @@ module Package
       version_task
 
       namespace 'versions' do
+        version_json_task
         version_markdown_task
-        version_pivotal_network_task
         version_yaml_task
       end
     end
@@ -48,35 +51,44 @@ module Package
     DEFAULT_REPOSITORY_ROOT_PATTERN = /\{default.repository.root\}/
 
     NAME_MAPPINGS = {
-      'access_logging_support'              => 'Tomcat Access Logging Support',
-      'app_dynamics_agent'                  => 'AppDynamics Agent',
-      'container_customizer'                => 'Spring Boot Container Customizer',
-      'container_security_provider'         => 'Container Security Provider',
-      'contrast_security_agent'             => 'Contrast Security Agent',
-      'dyadic_ekm_security_provider'        => 'Dyadic EKM Security Provider',
-      'dynatrace_appmon_agent'              => 'Dynatrace Appmon Agent',
-      'dynatrace_one_agent'                 => 'Dynatrace OneAgent',
-      'google_stackdriver_debugger'         => 'Google Stackdriver Debugger',
-      'groovy'                              => 'Groovy',
-      'jre'                                 => 'OpenJDK JRE',
-      'jrebel_agent'                        => 'JRebel Agent',
-      'jvmkill_agent'                       => 'jvmkill Agent',
-      'lifecycle_support'                   => 'Tomcat Lifecycle Support',
-      'logging_support'                     => 'Tomcat Logging Support',
-      'luna_security_provider'              => 'Gemalto Luna Security Provider',
-      'maria_db_jdbc'                       => 'MariaDB JDBC Driver',
-      'memory_calculator'                   => 'Memory Calculator',
-      'metric_writer'                       => 'Metric Writer',
-      'new_relic_agent'                     => 'New Relic Agent',
-      'play_framework_auto_reconfiguration' => 'Play Framework Auto-reconfiguration',
-      'play_framework_jpa_plugin'           => 'Play Framework JPA Plugin',
-      'postgresql_jdbc'                     => 'PostgreSQL JDBC Driver',
-      'protect_app_security_provider'       => 'Gemalto ProtectApp Security Provider',
-      'redis_store'                         => 'Redis Session Store',
-      'spring_auto_reconfiguration'         => 'Spring Auto-reconfiguration',
-      'spring_boot_cli'                     => 'Spring Boot CLI',
-      'tomcat'                              => 'Tomcat',
-      'your_kit_profiler'                   => 'YourKit Profiler'
+      'access_logging_support'        => 'Tomcat Access Logging Support',
+      'agent'                         => 'Java Memory Assistant Agent',
+      'app_dynamics_agent'            => 'AppDynamics Agent',
+      'clean_up'                      => 'Java Memory Assistant Clean Up',
+      'client_certificate_mapper'     => 'Client Certificate Mapper',
+      'container_customizer'          => 'Spring Boot Container Customizer',
+      'container_security_provider'   => 'Container Security Provider',
+      'contrast_security_agent'       => 'Contrast Security Agent',
+      'dyadic_ekm_security_provider'  => 'Dyadic EKM Security Provider',
+      'dynatrace_appmon_agent'        => 'Dynatrace Appmon Agent',
+      'dynatrace_one_agent'           => 'Dynatrace OneAgent',
+      'geode_store'                   => 'Geode Tomcat Session Store',
+      'google_stackdriver_debugger'   => 'Google Stackdriver Debugger',
+      'google_stackdriver_profiler'   => 'Google Stackdriver Profiler',
+      'groovy'                        => 'Groovy',
+      'introscope_agent'              => 'CA Introscope APM Framework',
+      'jacoco_agent'                  => 'JaCoCo Agent',
+      'jprofiler_profiler'            => 'JProfiler Profiler',
+      'jre'                           => 'OpenJDK JRE',
+      'jrebel_agent'                  => 'JRebel Agent',
+      'jvmkill_agent'                 => 'jvmkill Agent',
+      'lifecycle_support'             => 'Tomcat Lifecycle Support',
+      'logging_support'               => 'Tomcat Logging Support',
+      'luna_security_provider'        => 'Gemalto Luna Security Provider',
+      'maria_db_jdbc'                 => 'MariaDB JDBC Driver',
+      'memory_calculator'             => 'Memory Calculator',
+      'metric_writer'                 => 'Metric Writer',
+      'new_relic_agent'               => 'New Relic Agent',
+      'postgresql_jdbc'               => 'PostgreSQL JDBC Driver',
+      'protect_app_security_provider' => 'Gemalto ProtectApp Security Provider',
+      'redis_store'                   => 'Redis Session Store',
+      'riverbed_appinternals_agent'   => 'Riverbed Appinternals Agent',
+      'sky_walking_agent'             => 'SkyWalking',
+      'spring_auto_reconfiguration'   => 'Spring Auto-reconfiguration',
+      'spring_boot_cli'               => 'Spring Boot CLI',
+      'takipi_agent'                  => 'Takipi Agent',
+      'tomcat'                        => 'Tomcat',
+      'your_kit_profiler'             => 'YourKit Profiler'
     }.freeze
 
     PLATFORM_PATTERN = /\{platform\}/
@@ -179,16 +191,21 @@ module Package
         index_configuration(configuration).each do |index_configuration|
           version, uri = get_from_cache(cache, configuration, index_configuration)
 
+          name = NAME_MAPPINGS[id]
+          raise "Unable to resolve name for '#{id}'" unless name
+
           dependency_versions << {
             'id'      => id,
-            'name'    => NAME_MAPPINGS[id] || "UNKNOWN (#{id})",
+            'name'    => name,
             'uri'     => uri,
             'version' => version
           }
         end
       end
 
-      dependency_versions.sort_by { |dependency| dependency['id'] }
+      dependency_versions
+        .uniq { |dependency| dependency['id'] }
+        .sort_by { |dependency| dependency['id'] }
     end
 
     def index_configuration(configuration)
@@ -222,21 +239,24 @@ module Package
       end
     end
 
-    def version_markdown_task
-      desc 'Display the versions of buildpack dependencies in Markdown form'
-      task markdown: [] do
-        versions['dependencies']
+    def version_json_task
+      desc 'Display the versions of buildpack dependencies in JSON form'
+      task json: [] do
+        puts JSON.pretty_generate(versions['dependencies']
           .sort_by { |dependency| dependency['name'].downcase }
-          .each { |dependency| puts "| #{dependency['name']} | `#{dependency['version']}` |" }
+          .map { |dependency| "#{dependency['name']} #{dependency['version']}" })
       end
     end
 
-    def version_pivotal_network_task
-      desc 'Display the versions of buildpack dependencies in Pivotal Network form'
-      task pivotal_network: [] do
+    def version_markdown_task
+      desc 'Display the versions of buildpack dependencies in Markdown form'
+      task markdown: [] do
+        puts '| Dependency | Version |'
+        puts '| ---------- | ------- |'
+
         versions['dependencies']
           .sort_by { |dependency| dependency['name'].downcase }
-          .each { |dependency| puts "#{dependency['name']} #{dependency['version']}" }
+          .each { |dependency| puts "| #{dependency['name']} | `#{dependency['version']}` |" }
       end
     end
 

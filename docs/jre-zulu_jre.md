@@ -76,10 +76,10 @@ Memory pool usage:
    PS Old Gen: init 43515904, used 247459792, committed 247463936, max 247463936
 ```
 
-If a heap dump [Volume Service][] is bound, terminal heap dumps will be written with the pattern `"<CONTAINER_DIR>/<SPACE_NAME>-<SPACE_ID>/<APPLICATION_NAME>-<APPLICATION_ID>/<INSTANCE_INDEX>-<TIMESTAMP>-<INSTANCE_ID>.hprof`
+If a [Volume Service][] with the string `heap-dump` in its name or tag is bound to the application, terminal heap dumps will be written with the pattern `<CONTAINER_DIR>/<SPACE_NAME>-<SPACE_ID[0,8]>/<APPLICATION_NAME>-<APPLICATION_ID[0,8]>/<INSTANCE_INDEX>-<TIMESTAMP>-<INSTANCE_ID[0,8]>.hprof`
 
 ```plain
-Heapdump written to /var/vcap/data/9ae0b817-1446-4915-9990-74c1bb26f147/pcfdev-space-e91c5c39-b546-41d9-8095-9a45fa65df9e/java-main-application-892f20ab-9a53-441d-be3e-72c38f2a1055/0-2017-06-13T18:31:29+0000-7b23124e-7f0f-4a08-457b-60802d0a7326.hprof
+Heapdump written to /var/vcap/data/9ae0b817-1446-4915-9990-74c1bb26f147/pcfdev-space-e91c5c39/java-main-application-892f20ab/0-2017-06-13T18:31:29+0000-7b23124e.hprof
 ```
 
 ### Memory
@@ -98,6 +98,19 @@ The user can change the container's total memory available to influence the JRE 
 Unless the user specifies the heap size Java option (`-Xmx`), increasing or decreasing the total memory
 available results in the heap size setting increasing or decreasing by a corresponding amount.
 
+#### Loaded Classes
+
+The amount of memory that is allocated to metaspace and compressed class space (or, on Java 7, the permanent generation) is calculated from an estimate of the number of classes that will be loaded. The default behaviour is to estimate the number of loaded classes as a fraction of the number of class files in the application.
+If a specific number of loaded classes should be used for calculations, then it should be specified as in the following example:
+
+```yaml
+class_count: 500
+```
+
+#### Headroom
+
+A percentage of the total memory allocated to the container to be left as headroom and excluded from the memory calculation.
+
 #### Stack Threads
 
 The amount of memory that should be allocated to stacks is given as an amount of memory per
@@ -107,15 +120,6 @@ the following example:
 
 ```yaml
 stack_threads: 500
-```
-
-#### Loaded Classes
-
-The amount of memory that is allocated to metaspace and compressed class space (or, on Java 7, the permanent generation) is calculated from an estimate of the number of classes that will be loaded. The default behaviour is to estimate the number of loaded classes as a fraction of the number of class files in the application.
-If a specific number of loaded classes should be used for calculations, then it should be specified as in the following example:
-
-```yaml
-class_count: 500
 ```
 
 #### Java Options
