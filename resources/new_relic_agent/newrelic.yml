@@ -203,7 +203,7 @@ common: &default_settings
     # Events are collected up to the configured amount. Afterwards, events are sampled to
     # maintain an even distribution across the harvest cycle.
     # Default is 2000.  Setting to 0 will disable.
-    max_samples_stored: 2000
+    max_samples_stored: 10000
 
   # Distributed tracing lets you see the path that a request takes through your distributed system.
   # Enabling distributed tracing changes the behavior of some New Relic features, so carefully consult the transition
